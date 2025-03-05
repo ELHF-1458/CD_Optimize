@@ -63,10 +63,10 @@ if uploaded_file is not None:
     # Calcul dynamique de total_mois basé sur la moyenne journalière
     moyenne_journaliere = total_deja / jour_du_mois if jour_du_mois > 0 else 0
     total_mois = total_deja + round(jours_restants * moyenne_journaliere)
-    st.write(f"**Estimation du total mensuel** = {total_mois}")
+    # st.write(f"**Estimation du total mensuel** = {total_mois}")
     
     R = total_mois - total_deja
-    st.write(f"**Km restants à répartir** = {R}")
+    # st.write(f"**Km restants à répartir** = {R}")
     
     # Paramètres de Δ
     min_km_par_camion = jours_restants * 100   # 100 km/jour minimum
@@ -103,7 +103,7 @@ if uploaded_file is not None:
     
     # Déterminer les camions éligibles pour atteindre au moins 8000 km
     eligible_trucks = [i for i in trucks if df.loc[i, "Total"] + max_km_par_camion >= 8000]
-    st.write(f"Nombre de camions éligibles pour atteindre 8000 km : {len(eligible_trucks)}")
+    # st.write(f"Nombre de camions éligibles pour atteindre 8000 km : {len(eligible_trucks)}")
     logging.info(f"{len(eligible_trucks)} camions éligibles sur {N} pour atteindre 8000 km.")
     
     if st.button("Lancer l'optimisation"):
