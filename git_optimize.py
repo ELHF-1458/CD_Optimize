@@ -6,7 +6,7 @@ from pulp import PULP_CBC_CMD
 import io
 import logging
 
-# Configuration du logging : les logs seront enregistrés dans debug.log (fichier éphémère sur Streamlit Cloud)
+# Configuration du logging : les logs seront enregistrés dans debug.log
 logging.basicConfig(filename="debug.log", level=logging.DEBUG,
                     format="%(asctime)s %(levelname)s: %(message)s")
 logging.info("Application démarrée.")
@@ -69,13 +69,13 @@ if uploaded_file is not None:
     # st.write(f"**Km restants à répartir** = {R}")
     
     # Paramètres de Δ
-    min_km_par_camion = jours_restants * 100   # 100 km/jour minimum
+    min_km_par_camion = jours_restants * 100   # 100 km/jour minimum → Δ_min
     max_km_par_camion = jours_restants * 650   # Δ_max fixé à 650 km/jour
     
-    # Définition des paliers
+    # Définition des paliers et intervalles
     # Palier 0 : [0 - 4000]
     # Palier 1 : [4000 - 8000]
-    # Palier 2 : [8000 - 11000] (11000 appartient à ce palier)
+    # Palier 2 : [8000 - 11000]   (11000 appartient à ce palier)
     # Palier 3 : [11001 - 14000]
     # Palier 4 : >14000 (x >= 14001)
     L = [0, 4000, 8000, 11000, 14001]
@@ -89,7 +89,7 @@ if uploaded_file is not None:
         4: ">14000"
     }
     
-    # Nouveaux tarifs par transporteur et par palier
+    # Tarifs par transporteur et par palier
     tarifs = {
         "COMPTOIR SERVICE": [7.8, 7.8, 7.0, 6.8, 6.8],
         "S.T INDUSTRIE":     [6.9, 7.9, 7.9, 7.3, 6.9],
@@ -116,7 +116,7 @@ if uploaded_file is not None:
             try:
                 model = pulp.LpProblem("Optimisation_km", pulp.LpMinimize)
     
-                # Variables : x[i] = km total final, Δ[i] = km supplémentaires
+                # Variables : x[i] = Total déjà parcouru + Δ[i]
                 x = pulp.LpVariable.dicts("x", trucks, lowBound=0, cat=pulp.LpContinuous)
                 Delta = pulp.LpVariable.dicts("Delta", trucks,
                                               lowBound=min_km_par_camion,
@@ -155,18 +155,14 @@ if uploaded_file is not None:
                     model += x[i] <= 14000 + M*(1 - y[i][3]), f"Max_x_palier3_{i}"
                     model += x[i] >= 14001 * y[i][4], f"Min_x_palier4_{i}"
     
-                # Contraintes globales de répartition avec tolérance de ±7%
-                tol = 7  # en points de pourcentage
-                model += pulp.lpSum(y[i][0] for i in trucks) >= ((p0 - tol)/100)*N, "LB_Global_palier_0"
-                model += pulp.lpSum(y[i][0] for i in trucks) <= ((p0 + tol)/100)*N, "UB_Global_palier_0"
-                model += pulp.lpSum(y[i][1] for i in trucks) >= ((p1 - tol)/100)*N, "LB_Global_palier_1"
-                model += pulp.lpSum(y[i][1] for i in trucks) <= ((p1 + tol)/100)*N, "UB_Global_palier_1"
-                model += pulp.lpSum(y[i][2] for i in trucks) >= ((p2 - tol)/100)*N, "LB_Global_palier_2"
-                model += pulp.lpSum(y[i][2] for i in trucks) <= ((p2 + tol)/100)*N, "UB_Global_palier_2"
-                model += pulp.lpSum(y[i][3] for i in trucks) >= ((p3 - tol)/100)*N, "LB_Global_palier_3"
-                model += pulp.lpSum(y[i][3] for i in trucks) <= ((p3 + tol)/100)*N, "UB_Global_palier_3"
-                model += pulp.lpSum(y[i][4] for i in trucks) >= ((p4 - tol)/100)*N, "LB_Global_palier_4"
-                model += pulp.lpSum(y[i][4] for i in trucks) <= ((p4 + tol)/100)*N, "UB_Global_palier_4"
+                # Contraintes globales de répartition (avec inégalités)
+                model += pulp.lpSum(y[i][0] for i in trucks) <= (p0/100)*N, "Limite_palier_0"
+                model += pulp.lpSum(y[i][1] for i in trucks) <= (p1/100)*N, "Limite_palier_1"
+                model += pulp.lpSum(y[i][4] for i in trucks) <= (p4/100)*N, "Limite_palier_4"
+                if eligible_trucks:
+                    model += pulp.lpSum(y[i][2] + y[i][3] + y[i][4] for i in eligible_trucks) >= ((p2+p3+p4)/100) * len(eligible_trucks), "Limite_union_2_3_4"
+                else:
+                    st.warning("Aucun camion éligible pour atteindre 8000 km avec le Δ maximum.")
     
                 model += pulp.lpSum(
                     tarifs[df.loc[i, "Transporteur"]][j] * z[i][j]
@@ -186,7 +182,7 @@ if uploaded_file is not None:
         if status == "Optimal" or status == "Not Solved":
             st.success("Optimisation terminée !")
     
-            # Récapitulatif de répartition par palier
+            # Calcul du récapitulatif de répartition par palier
             recaps = []
             for j in paliers:
                 count = sum(pulp.value(y[i][j]) for i in trucks)
@@ -220,7 +216,7 @@ if uploaded_file is not None:
                 resultats.append({
                     "Immatriculation": immatriculation,
                     "Transporteur": transporteur,
-                    "Total (17/02)": km_deja,
+                    "Total": km_deja,
                     "Variation": delta_val,
                     "Total Finale": x_final,
                     "Intervalle Palier": intervalle,
@@ -228,13 +224,13 @@ if uploaded_file is not None:
                 })
     
             df_resultats = pd.DataFrame(resultats)
-            total_km_deja = df_resultats["Total (17/02)"].sum()
+            total_km_deja = df_resultats["Total"].sum()
             total_delta = df_resultats["Variation"].sum()
             total_x_final = df_resultats["Total Finale"].sum()
             ligne_total = {
                 "Immatriculation": "Total",
                 "Transporteur": "",
-                "Total (17/02)": total_km_deja,
+                "Total": total_km_deja,
                 "Variation": total_delta,
                 "Total Finale": total_x_final,
                 "Intervalle Palier": "",
