@@ -6,6 +6,10 @@ import pulp
 from pulp import PULP_CBC_CMD
 import io
 import logging
+import warnings
+
+warnings.filterwarnings("ignore")
+
 
 # Configuration du logging : les logs seront enregistrés dans debug.log
 logging.basicConfig(filename="debug.log", level=logging.DEBUG,
