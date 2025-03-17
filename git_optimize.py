@@ -41,7 +41,7 @@ st.sidebar.header("Répartition par palier (%)")
 p0 = st.sidebar.slider("Palier [0 - 4000]", 0, 100, 20, 1)
 p1 = st.sidebar.slider("Palier [4000 - 8000]", 0, 100, 20, 1)
 p2 = st.sidebar.slider("Palier [8000 - 11000]", 0, 100, 20, 1)
-p3 = st.sidebar.slider("Palier [11001 - 14000]", 0, 100, 20, 1)
+p3 = st.sidebar.slider("Palier [11000 - 14000]", 0, 100, 20, 1)
 p4 = st.sidebar.slider("Palier (>14000)", 0, 100, 20, 1)
 total_pourc = p0 + p1 + p2 + p3 + p4
 st.sidebar.write(f"Somme des pourcentages : {total_pourc} %")
@@ -199,7 +199,7 @@ if uploaded_file is not None:
                     model += x[i] <= 8000 + M*(1 - y[i][1]), f"Max_x_palier1_{i}"
                     model += x[i] >= 8000 * y[i][2], f"Min_x_palier2_{i}"
                     model += x[i] <= 11000 + M*(1 - y[i][2]), f"Max_x_palier2_{i}"
-                    model += x[i] >= 11000 * y[i][3], f"Min_x_palier3_{i}"
+                    model += x[i] >= 11001 * y[i][3], f"Min_x_palier3_{i}"
                     model += x[i] <= 14000 + M*(1 - y[i][3]), f"Max_x_palier3_{i}"
                     model += x[i] >= 14001 * y[i][4], f"Min_x_palier4_{i}"
     
